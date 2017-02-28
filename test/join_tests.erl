@@ -13,7 +13,7 @@ prop_concat() ->
     ?FORALL(A, list(list(int())), concat(A) == lists:concat(A)).
 
 small_int() ->
-    ?SUCHTHAT(N, int(), N < 100).
+    ?SUCHTHAT(N, nat(), N < 100).
 
 prop_member() ->
     ?FORALL(A, small_int(), ?FORALL(B, list(small_int()), member(A,B) == lists:member(A,B))).
