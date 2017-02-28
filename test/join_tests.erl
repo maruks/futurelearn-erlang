@@ -33,7 +33,7 @@ fact(N) ->
     N * fact(N-1).
 
 small_list() ->
-    ?SUCHTHAT(N, list(int()), length(N) < 10).
+    ?SUCHTHAT(N, ?LET(Values, list(int()), lists:usort(Values)), length(N) < 10).
 
 prop_perms() ->
-    ?FORALL(A, small_list(), length(perms(A)) == fact(length(A))).
+    ?FORALL(A, small_list(), length(perms(A)) == fact(length(A)) andalso length(lists:usort(perms(A))) == fact(length(A))).
