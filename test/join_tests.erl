@@ -36,4 +36,7 @@ small_list() ->
     ?SUCHTHAT(N, ?LET(Values, list(int()), lists:usort(Values)), length(N) < 10).
 
 prop_perms() ->
-    ?FORALL(A, small_list(), length(perms(A)) == fact(length(A)) andalso length(lists:usort(perms(A))) == fact(length(A))).
+    ?FORALL(A, small_list(),
+	    length(perms(A)) == fact(length(A)) andalso
+	    length(lists:usort(perms(A))) == fact(length(A)) andalso
+	    lists:all(fun(P) -> length(P) == length(A) end, perms(A))).
