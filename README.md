@@ -1,8 +1,8 @@
 futurelearn Erlang coding exercises
 =====
 
-https://www.futurelearn.com/courses/functional-programming-erlang
-https://www.futurelearn.com/courses/concurrent-programming-erlang
++ Functional programming in Erlang
++ Concurrent programming in Erlang
 
 Build
 -----
