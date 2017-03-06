@@ -2,6 +2,7 @@ futurelearn Erlang coding exercises
 =====
 
 https://www.futurelearn.com/courses/functional-programming-erlang
+https://www.futurelearn.com/courses/concurrent-programming-erlang
 
 Build
 -----
