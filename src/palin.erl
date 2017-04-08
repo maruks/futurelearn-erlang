@@ -52,12 +52,11 @@ dist(Servers, N) ->
 	    lists:nth(N + 1, Servers) ! M,
 	    dist(Servers, (N + 1) rem length(Servers));
 	stop ->
-	    lists:foreach(fun(P) -> P ! stop end, Servers),
 	    ok
     end.
 
 distribute(N) ->
-    Servers = [ spawn(?MODULE, server,[]) || _ <- lists:seq(1,N)],
+    Servers = [ spawn_link(?MODULE, server,[]) || _ <- lists:seq(1,N)],
     spawn(?MODULE, dist, [Servers, 0]).
 
 server() ->
