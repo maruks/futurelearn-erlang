@@ -52,6 +52,7 @@ dist(Servers, N) ->
 	    lists:nth(N + 1, Servers) ! M,
 	    dist(Servers, (N + 1) rem length(Servers));
 	stop ->
+	    lists:foreach(fun(P) -> P ! stop end, Servers),
 	    ok
     end.
 
