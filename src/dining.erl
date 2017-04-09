@@ -1,19 +1,24 @@
 -module(dining).
 
+-define(EAT_TIME, 1000).
+-define(HUNGRY_AFTER, 100).
+
 -import(lists,[foldr/3,foldl/3,filter/2,split/2,flatmap/2,map/2,seq/2]).
 
--export([run/1,fork_loop/2,philosopher_loop/5,start_philosopher/3,report_loop/1]).
+-export([start/1,stop/0,fork_loop/2,philosopher_loop/5,start_philosopher/3,reporter/1,main/1]).
 
 fork_loop(Available, Owner) ->
     receive
 	{take, From} when Available == true ->
 	    From ! {taken, self()},
+	    reporter ! {taken, self()},
 	    fork_loop(false, From);
 	{take, From} when Available == false ->
 	    From ! {not_available},
 	    fork_loop(false, Owner);
 	{return, Owner} when Available == false ->
 	    Owner ! {returned, self()},
+	    reporter ! {returned, self()},
 	    fork_loop(true, none);
 	{return, From} ->
 	    From ! {error},
@@ -34,7 +39,7 @@ stop_eating(LeftFork, RightFork, HasLeftFork, HasRightFork) ->
 
 philosopher_loop(true, LeftFork, RightFork, true, true) ->
     reporter ! {eating, self()},
-    timer:sleep(1000),
+    timer:sleep(?EAT_TIME),
     reporter ! {thinking, self()},
     RightFork ! {return, self()},
     LeftFork ! {return, self()},
@@ -48,7 +53,7 @@ philosopher_loop(false, LeftFork, RightFork, HasLeftFork, HasRightFork) ->
 	_ ->
 	    philosopher_loop(false, LeftFork, RightFork, HasLeftFork, HasRightFork)
 	after
-	    100 ->
+	    ?HUNGRY_AFTER ->
 		LeftFirst = rand:uniform(10) < 5 ,
 		case LeftFirst of
 		      true -> LeftFork ! {take, self()};
@@ -61,31 +66,47 @@ start_philosopher(N, LeftFork, RightFork) ->
     put(num, N),
     philosopher_loop(false, LeftFork, RightFork, false, false).
 
+-record(report, {eating = 0, consumed = 0, forks = 0}).
 
-report_loop(Eating) ->
+report_loop(#report{eating= Eating, consumed = Consumed, forks = Forks} = S) ->
     receive
 	{eating, _} ->
-	    report_loop(Eating + 1);
+	    report_loop(S#report{eating= Eating + 1, consumed = Consumed + 1});
 	{thinking, _} ->
-	    report_loop(Eating - 1);
+	    report_loop(S#report{eating= Eating - 1});
+	{taken, _} ->
+	    report_loop(S#report{forks= Forks - 1});
+	{returned, _} ->
+	    report_loop(S#report{forks= Forks + 1});
 	{print} ->
-	    io:format("~p~n",[Eating]),
-	    report_loop(Eating)
+	    io:format("eating = ~p , forks = ~p, consumed = ~p~n",[Eating, Forks, Consumed]),
+	    report_loop(S);
+	{stop} ->
+	    exit("bye")
     end.
 
 spawn_philosophers(0, PrevFork, FirstFork) ->
-    spawn(?MODULE, start_philosopher, [0, PrevFork, FirstFork]);
+    spawn_link(?MODULE, start_philosopher, [0, PrevFork, FirstFork]);
 spawn_philosophers(N, PrevFork, FirstFork) ->
-    RightFork = spawn(?MODULE, fork_loop, [true, none]),
-    spawn(?MODULE, start_philosopher, [N, PrevFork, RightFork]),
+    RightFork = spawn_link(?MODULE, fork_loop, [true, none]),
+    spawn_link(?MODULE, start_philosopher, [N, PrevFork, RightFork]),
     spawn_philosophers(N - 1, RightFork, FirstFork).
 
 spawn_philosophers(N) ->
-    FirstFork = spawn(?MODULE, fork_loop, [true, none]),
+    FirstFork = spawn_link(?MODULE, fork_loop, [true, none]),
     spawn_philosophers(N - 1, FirstFork, FirstFork).
 
-run(Number) ->
-    Reporter = spawn(?MODULE, report_loop, [0]),
+reporter(Number) ->
+    spawn_philosophers(Number),
+    report_loop(#report{forks = Number}).
+
+start(Number) ->
+    Reporter = spawn(?MODULE, reporter, [Number]),
     register(reporter, Reporter),
-    timer:send_interval(1000, reporter, {print}),
-    spawn_philosophers(Number).
+    timer:send_interval(1000, reporter, {print}).
+
+stop() ->
+    reporter ! {stop}.
+
+main([N]) ->
+    start(list_to_integer(atom_to_list(N))).
