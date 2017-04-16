@@ -24,7 +24,32 @@ action(10) ->
 action(11) ->
     spawn_link(fun() -> exit(kill) end);
 action(12) ->
+    spawn_link(fun() -> catch_all(fun() -> exit(reason) end) end);
+action(13) ->
+    spawn_link(fun() -> catch_all(fun() -> exit(normal) end) end);
+action(14) ->
+    spawn_link(fun() -> catch_all(fun() -> 1/0 end) end);
+action(15) ->
+    spawn_link(fun() -> catch_all(fun() -> error(reason) end) end);
+action(16) ->
+    spawn_link(fun() -> catch_all(fun() -> throw(rocks) end) end);
+action(17) ->
+    spawn_link(fun() -> catch_all(fun() -> exit(kill) end) end);
+action(18) ->
     exit(self(), kill).
+
+catch_all(Fn) ->
+    try Fn() of
+	Val ->
+	    Val
+    catch
+	throw:V ->
+	    io:format("throw ~p~n",[V]);
+	error:V ->
+	    io:format("error ~p~n",[V]);
+	exit:V ->
+	    io:format("exit ~p~n",[V])
+    end.
 
 init(Xs) ->
     process_flag(trap_exit,true),
@@ -45,4 +70,4 @@ loop([X|Xs]) ->
     end.
 
 start() ->
-    spawn(?MODULE,init,[lists:seq(1,12)]).
+    spawn(?MODULE,init,[lists:seq(1,18)]).
