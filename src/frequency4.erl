@@ -6,16 +6,32 @@
 %%   http://www.erlangprogramming.org/
 %%   (c) Francesco Cesarini and Simon Thompson
 
--module(frequency3).
+-module(frequency4).
 -export([start/0,allocate/0,deallocate/1,stop/0,client/1,start_clients/0]).
+-export([supervisor_init/0,supervisor_loop/0,supervisor_start/0]).
 -export([init/0]).
 
 %% These are the start functions used to create and
 %% initialize the server.
 
+supervisor_init() ->
+    process_flag(trap_exit, true),
+    supervisor_loop().
+
+supervisor_loop() ->
+    start(),
+    receive
+	{'EXIT', Pid, Reason} ->
+	    io:format("EXIT ~p ~p~n",[Pid,Reason]),
+	    supervisor_loop()
+    end.
+
+supervisor_start() ->
+    spawn(?MODULE,supervisor_init,[]).
+
 start() ->
     register(frequency,
-	     spawn(frequency, init, [])).
+	     spawn_link(frequency, init, [])).
 
 init() ->
   process_flag(trap_exit, true),    %%% ADDED
@@ -100,16 +116,17 @@ client_action(true, Freq) ->
 client_action(false, _) ->
     allocate().
 
-
 client_loop(Sleep, Freq, Allocated) ->
     timer:sleep(Sleep),
     try client_action(Allocated, Freq) of
 	{ok, F} ->
-	    io:format("~p~n",[F]),
+	    io:format("allocated ~p~n",[F]),
 	    client_loop(Sleep, F, true);
 	{ok} ->
+	    io:format("deallocated~n"),
 	    client_loop(Sleep, none, false);
-	{error, no_frequency} ->
+	{error, Reason} ->
+	    io:format("error ~p~n",[Reason]),
 	    client_loop(Sleep, none, false)
     catch T:E ->
 	    io:format("~p~p~n",[T,E]),
@@ -117,4 +134,4 @@ client_loop(Sleep, Freq, Allocated) ->
     end.
 
 start_clients() ->
-    [spawn(?MODULE,client,[S]) || S <- [500,1000,1500,2000]].
+    [spawn(?MODULE,client,[S]) || S <- [1000,2000,3000,4000]].
