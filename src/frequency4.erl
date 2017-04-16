@@ -30,8 +30,8 @@ supervisor_start() ->
     spawn(?MODULE,supervisor_init,[]).
 
 start() ->
-    register(frequency,
-	     spawn_link(frequency, init, [])).
+    register(?MODULE,
+	     spawn_link(?MODULE, init, [])).
 
 init() ->
   process_flag(trap_exit, true),    %%% ADDED
@@ -44,38 +44,38 @@ get_frequencies() -> [10,11,12,13,14,15].
 %% The Main Loop
 
 loop(Frequencies) ->
-  receive
-    {request, Pid, allocate} ->
-      {NewFrequencies, Reply} = allocate(Frequencies, Pid),
-      Pid ! {reply, Reply},
-      loop(NewFrequencies);
-    {request, Pid , {deallocate, Freq}} ->
-      NewFrequencies = deallocate(Frequencies, Freq),
-      Pid ! {reply, ok},
-      loop(NewFrequencies);
-    {request, Pid, stop} ->
-      Pid ! {reply, stopped};
-    {'EXIT', Pid, _Reason} ->                   %%% CLAUSE ADDED
-      NewFrequencies = exited(Frequencies, Pid),
-      loop(NewFrequencies)
-  end.
+    receive
+	{request, Pid, allocate} ->
+	    {NewFrequencies, Reply} = allocate(Frequencies, Pid),
+	    Pid ! {reply, Reply},
+	    loop(NewFrequencies);
+	{request, Pid , {deallocate, Freq}} ->
+	    {NewFrequencies, Reply} = deallocate(Frequencies, Freq),
+	    Pid ! {reply, Reply},
+	    loop(NewFrequencies);
+	{request, Pid, stop} ->
+	    Pid ! {reply, stopped};
+	{'EXIT', Pid, _Reason} ->                   %%% CLAUSE ADDED
+	    NewFrequencies = exited(Frequencies, Pid),
+	    loop(NewFrequencies)
+    end.
 
 %% Functional interface
 
 allocate() ->
-    frequency ! {request, self(), allocate},
+    ?MODULE ! {request, self(), allocate},
     receive
 	    {reply, Reply} -> Reply
     end.
 
 deallocate(Freq) ->
-    frequency ! {request, self(), {deallocate, Freq}},
+    ?MODULE ! {request, self(), {deallocate, Freq}},
     receive
 	    {reply, Reply} -> Reply
     end.
 
 stop() ->
-    frequency ! {request, self(), stop},
+    ?MODULE ! {request, self(), stop},
     receive
 	    {reply, Reply} -> Reply
     end.
@@ -87,14 +87,19 @@ stop() ->
 allocate({[], Allocated}, _Pid) ->
   {{[], Allocated}, {error, no_frequency}};
 allocate({[Freq|Free], Allocated}, Pid) ->
-  link(Pid),                                               %%% ADDED
+  link(Pid),
   {{Free, [{Freq, Pid}|Allocated]}, {ok, Freq}}.
 
-deallocate({Free, Allocated}, Freq) ->
-  {value,{Freq,Pid}} = lists:keysearch(Freq,1,Allocated),  %%% ADDED
-  unlink(Pid),                                             %%% ADDED
-  NewAllocated=lists:keydelete(Freq, 1, Allocated),
-  {[Freq|Free],  NewAllocated}.
+deallocate({Free, Allocated}=F, Freq) ->
+  Val = lists:keysearch(Freq,1,Allocated),
+  case Val of
+      {value,{Freq,Pid}} ->
+	  unlink(Pid),
+	  NewAllocated=lists:keydelete(Freq, 1, Allocated),
+	  {{[Freq|Free],  NewAllocated}, {ok}};
+      false ->
+	  {F, {error, not_allocated}}
+  end.
 
 exited({Free, Allocated}, Pid) ->                %%% FUNCTION ADDED
     case lists:keysearch(Pid,2,Allocated) of
