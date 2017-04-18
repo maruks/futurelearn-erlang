@@ -1,13 +1,14 @@
 {application, fl,
- [{description, "An OTP library"},
+ [{description, "Freq OTP library"},
   {vsn, "0.1.0"},
   {registered, []},
+  {mod, {fl_app, []}},
   {applications,
    [kernel,
     stdlib
    ]},
   {env,[]},
-  {modules, []},
+  {modules, [fl_app, fl_sup, frequency_gs]},
 
   {maintainers, []},
   {licenses, []},
